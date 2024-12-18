@@ -48,7 +48,7 @@ const taskListSlug = 'a1ty5dsi';
 
 
 
-
+// TODO: basic auth
 app.get('/competitions/create/:slug', async (c) => {
   const { slug } = c.req.param();
   const duration = c.req.query['duration'] && Number(c.req.query['duration']);
@@ -66,28 +66,28 @@ app.get('/competitions/create/:slug', async (c) => {
 // TODO state updates should really be async of frontend update requests. Maybe in worker thread?
 app.get('/competitions/:slug', async (c) => {
   const slug = c.req.param['slug'];
-  const allTasks = runningCompetitions[slug].tasks;
+  // const allTasks = runningCompetitions[slug].tasks;
   // TODO: This should be done for each challenger
   // TODO: Check acceptable rate to not get blocked. Once per minute / 5minutes?
-  const submissions = await leetcodeApi.recent_submissions('kartearis');
-  console.log(submissions);
-  // TODO: This should be accumulative global with persistence in case of failure. Init & type
-  const currentState = { 'kartearis': {}};
-  allTasks.forEach((question) => {
-    // TODO: make more effective, better build map with all filters before calculating state
-    const relevant = submissions
-      .filter((sub) => sub.titleSlug === question.titleSlug);
+  // const submissions = await leetcodeApi.recent_submissions('kartearis');
+  // console.log(submissions);
+  // // TODO: This should be accumulative global with persistence in case of failure. Init & type
+  // const currentState = { 'kartearis': {}};
+  // allTasks.forEach((question) => {
+  //   // TODO: make more effective, better build map with all filters before calculating state
+  //   const relevant = submissions
+  //     .filter((sub) => sub.titleSlug === question.titleSlug);
+  //
+  //   // TODO: current user & enum for states
+  //   currentState['kartearis'][question.titleSlug] = {
+  //     isPassed: relevant.some((sub) => sub.statusDisplay === "Accepted"),
+  //     failNum: relevant.filter((sub) => sub.statusDisplay !== "Accepted").length,
+  //     firstAcceptedTime: Math.max(...relevant.filter((sub) => sub.statusDisplay === "Accepted")
+  //       .map((sub) => Number(sub.timestamp)))
+  //   }
+  // });
 
-    // TODO: current user & enum for states
-    currentState['kartearis'][question.titleSlug] = {
-      isPassed: relevant.some((sub) => sub.statusDisplay === "Accepted"),
-      failNum: relevant.filter((sub) => sub.statusDisplay !== "Accepted").length,
-      firstAcceptedTime: Math.max(...relevant.filter((sub) => sub.statusDisplay === "Accepted")
-        .map((sub) => Number(sub.timestamp)))
-    }
-  });
-
-  return c.json(currentState);
+  // return c.json(currentState);
 });
 
 // TODO: ref
