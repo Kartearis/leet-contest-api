@@ -1,11 +1,21 @@
 import fs from "fs";
+import {debounce} from "es-toolkit";
 
 // TODO: maybe replace with vue-reactivity
-export async function makeShallowProxy(target: Record<string, unknown>, file: string) {
+export function makeShallowProxy(target: Record<string, unknown>, file: string) {
+  console.log('Make proxy for', target);
+
+  const debouncedWrite = debounce(
+    (fileName: string, data: unknown) => fs.promises
+      .writeFile(fileName, JSON.stringify(data)).catch(console.log),
+    500
+  );
+
   return new Proxy(target, {
     set(target, prop, value) {
       target[prop as string] = value;
-      fs.promises.writeFile(`data/${file}.json`, JSON.stringify(target)).catch(console.log);
+      console.log('proxy triggered');
+      debouncedWrite(`data/${file}.json`, target);
 
       return true;
     },

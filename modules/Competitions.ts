@@ -13,7 +13,7 @@ export enum SubmissionStatus {
   COMPILE_ERROR = "Compile Error",
   RUNTIME_ERROR = "Runtime Error"
 }
-export type UserSubmissions = Record<string, RecentSubmission[]>;
+export type UserSubmissions = Record<string, RecentSubmission[] | undefined>;
 export type TaskProgress = {
   isPassed: boolean,
   failNum: number,
@@ -46,6 +46,10 @@ export type RunningCompetitions = Record<string, Competition>;
 
 export let runningCompetitions: RunningCompetitions = {};
 
+export function setRunningCompetitions(data: RunningCompetitions) {
+  runningCompetitions = data;
+}
+
 const threeHours = 60 * 60 * 3;
 
 export async function addCompetition(competitionSlug: string, duration?: number) {
@@ -64,6 +68,7 @@ export async function addCompetition(competitionSlug: string, duration?: number)
     users: [],
   };
 
+  console.log('Add to', runningCompetitions);
   runningCompetitions[competitionSlug] = await updateCompetitionTaskList(competition);
 }
 
@@ -86,6 +91,7 @@ export async function updateAllCompetitionTaskList(): Promise<RunningCompetition
 // TODO: do not duplicate requests about one user if can be shared by several competitions
 export async function updateAllCompetitionStates(){
   const competitions = Object.values(runningCompetitions);
+  console.log('Update all competitions');
 
   await Promise.all(competitions.map(async (competition) => {
     const currentTime = dayjs().unix();
@@ -105,7 +111,7 @@ export async function updateAllCompetitionStates(){
     const globalQuestionState = calcGlobalQuestionState(competition);
 
     competition.users.forEach((user) => {
-      const submissionsByQuestions = userSubmissionByTask(competition.userSubmissions[user]);
+      const submissionsByQuestions = userSubmissionByTask(competition.userSubmissions[user] ?? []);
 
       competition.tasks.forEach((question) => {
         const relevant = submissionsByQuestions[question.titleSlug];
@@ -166,7 +172,7 @@ function updateCompetitionSubmissions(competition: Competition): Promise<boolean
 
 async function updateUserSubmissions(competition: Competition, user: User, questionMap: QuestionMap): Promise<boolean> {
   const submissions = await leetcodeApi.recent_submissions(user);
-  const existingSubmissions = competition.userSubmissions[user];
+  const existingSubmissions = competition.userSubmissions[user] ?? [];
   const competitionEnd = competition.startTime + competition.durationS;
   const lastSubmissionTimestamp = existingSubmissions.length
     ? Number(existingSubmissions[existingSubmissions.length - 1].timestamp)
@@ -182,12 +188,12 @@ async function updateUserSubmissions(competition: Competition, user: User, quest
     return false;
   }
 
-  if (!existingSubmissions.length) {
+  if (!existingSubmissions.length || !competition.userSubmissions[user]) {
     competition.userSubmissions[user] = validSubmissions;
     return true;
   }
 
-  competition.userSubmissions[user].push(...validSubmissions);
+  competition.userSubmissions[user]?.push(...validSubmissions);
   return true;
 }
 

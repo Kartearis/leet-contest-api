@@ -4,24 +4,13 @@ import {loadPersistent, makeShallowProxy} from "./modules/Persistence.ts";
 import {
   addCompetition,
   RunningCompetitions,
-  runningCompetitions, startCompetitionStatesIntervalUpdates,
+  runningCompetitions, setRunningCompetitions, startCompetitionStatesIntervalUpdates,
   updateAllCompetitionTaskList
 } from "./modules/Competitions.ts";
 import {HTTPException} from "hono/http-exception";
+import {renderCompetitionPage} from "./modules/Ui.ts";
 
 const app = new Hono();
-
-// app.use(
-//   '*',
-//   cors({
-//     origin: '*',
-//     allowHeaders: ['*'],
-//     allowMethods: ['*'],
-//     exposeHeaders: ['Content-Length'],
-//     maxAge: 600,
-//     credentials: true,
-//   })
-// )
 
 const port = 3000;
 
@@ -39,23 +28,58 @@ app.get('/competitions/create/:slug', async (c) => {
   return c.json({ created: true, tasks: runningCompetitions[slug].tasks.length });
 });
 
-app.get('/competitions/:slug', async (c) => {
-  const slug = c.req.param['slug'];
+// TODO: currently unused
+app.post('/competitions/:slug/register', async (c) => {
+  const slug = c.req.param('slug');
+  const competition = runningCompetitions[slug];
 
-  const competitionState = runningCompetitions[slug].currentRankings;
+  if (!competition) {
+    throw new HTTPException(404, { message: 'Competition does not exist' });
+  }
 
-  return c.json({});
+  const body = await c.req.json();
+
+  if (!body.user) {
+    throw new HTTPException(422, { message: 'Malformed request' });
+  }
+
+  competition.users.push(String(body.user));
+
+  return c.json({ ok: 'true' });
+});
+
+// TODO: drop user parameter and make registration instead
+app.get('/competitions/:slug/', async (c) => {
+  const slug = c.req.param('slug');
+  const user = c.req.query('user');
+  console.log('user is', user);
+  if (!user) {
+    throw new HTTPException(422, { message: 'User must be provided' });
+  }
+  console.log(`get for  ${user}`);
+  const competition = runningCompetitions[slug];
+
+  if (!competition) {
+    throw new HTTPException(404, { message: 'Competition does not exist' });
+  }
+
+  if (!competition.users.includes(user)) {
+    competition.users.push(user);
+  }
+
+  return c.html(renderCompetitionPage(competition.currentRankings, competition.tasks, competition.titleSlug));
 });
 
 const fiveMinutes = 1000 * 60 * 5;
 
 loadPersistent('runningCompetitions')
   .then((data) => {
-  runningCompetitions = data as RunningCompetitions;
+  console.log('Loaded', data);
+  setRunningCompetitions(data as RunningCompetitions ?? {});
   return updateAllCompetitionTaskList();
 }).then(() => {
-  runningCompetitions = makeShallowProxy(runningCompetitions, 'runningCompetitions') as RunningCompetitions;
-  startCompetitionStatesIntervalUpdates(fiveMinutes);
+  setRunningCompetitions(makeShallowProxy(runningCompetitions, 'runningCompetitions') as RunningCompetitions);
+  startCompetitionStatesIntervalUpdates(fiveMinutes / 5);
 
   console.log(`Server is running on port ${port}`)
   serve({
