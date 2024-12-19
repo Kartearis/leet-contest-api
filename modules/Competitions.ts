@@ -4,6 +4,15 @@ import {getAllTasks} from "./CustomLeetcodeApi.ts";
 import dayjs from "dayjs";
 import {keyBy} from "es-toolkit";
 
+export enum SubmissionStatus {
+  ACCEPTED = "Accepted",
+  WRONG = "Wrong Answer",
+  TIME_LIMIT = "Time Limit Exceeded",
+  MEMORY_LIMIT = "Memory Limit Exceeded",
+  OUTPUT_LIMIT = "Output Limit Exceeded",
+  COMPILE_ERROR = "Compile Error",
+  RUNTIME_ERROR = "Runtime Error"
+}
 export type UserSubmissions = Record<string, RecentSubmission[]>;
 export type TaskProgress = {
   isPassed: boolean,
@@ -11,6 +20,9 @@ export type TaskProgress = {
   firstAcceptedTime: number // timestamp,
   score: number,
 }
+type QuestionState = {
+  solved: number
+};
 // Record of progress per task
 export type UserRanking = Record<string, TaskProgress>
 // Record of Ranking per user
@@ -71,55 +83,88 @@ export async function updateAllCompetitionTaskList(): Promise<RunningCompetition
     .map((competition) => updateCompetitionTaskList(competition)));
 }
 
-// TODO: do not duplicate requests about one user if it shared by several competitions
+// TODO: do not duplicate requests about one user if can be shared by several competitions
 export async function updateAllCompetitionStates(){
   const competitions = Object.values(runningCompetitions);
 
-  competitions.forEach((competition) => {
+  await Promise.all(competitions.map(async (competition) => {
+    const currentTime = dayjs().unix();
 
-    // TODO: make concurrent with other competitions
-    await updateCompetitionSubmissions(competition);
+    if (currentTime > competition.startTime + competition.durationS) {
+      return;
+    }
 
-    // WIP
-    // TODO: make global task progress here to pass in score calculation
+    // TODO: make concurrent with other competitions!!
+    // TODO: fix score not updating to last state
+    const submissionsUpdated = await updateCompetitionSubmissions(competition);
+
+    if (!submissionsUpdated) {
+      return;
+    }
+
+    const globalQuestionState = calcGlobalQuestionState(competition);
 
     competition.users.forEach((user) => {
+      const submissionsByQuestions = userSubmissionByTask(competition.userSubmissions[user]);
+
       competition.tasks.forEach((question) => {
-        // TODO: make more effective (make map of submissions by question, then for each
-        // calculate firstAcceptedTime and failNum in one pass (isPassed = !!firstAcceptedTime)
-        const relevant = competition.userSubmissions[user]
-          .filter((sub) => sub.titleSlug === question.titleSlug);
+        const relevant = submissionsByQuestions[question.titleSlug];
+        const acceptedSubmissions = relevant.filter((submission) => submission.statusDisplay === SubmissionStatus.ACCEPTED);
 
         if (!competition.currentRankings[user]) {
           competition.currentRankings[user] = {};
         }
 
-        // TODO: current user & enum for states, make more effective
-        const userTaskProgress =  {
-          isPassed: relevant.some((sub) => sub.statusDisplay === "Accepted"),
-          failNum: relevant.filter((sub) => sub.statusDisplay !== "Accepted").length,
-          firstAcceptedTime: Math.max(...relevant.filter((sub) => sub.statusDisplay === "Accepted")
-            .map((sub) => Number(sub.timestamp))),
+        const userTaskProgress: TaskProgress =  {
+          isPassed: !!acceptedSubmissions.length,
+          failNum: relevant.length - acceptedSubmissions.length,
+          firstAcceptedTime: acceptedSubmissions.length && Math.min(...acceptedSubmissions.map((sub) => Number(sub.timestamp))),
           score: 0,
         };
-        userTaskProgress.score = calcScore(userTaskProgress, {});
+        userTaskProgress.score = calcScore(userTaskProgress, globalQuestionState[question.titleSlug]);
 
         competition.currentRankings[user][question.titleSlug] = userTaskProgress;
       });
     })
 
-  })
+  }));
+}
+
+function userSubmissionByTask(userSubmission: RecentSubmission[]): Record<string, RecentSubmission[]> {
+  return userSubmission
+    .reduce((acc, submission) => {
+      if (!acc[submission.titleSlug]) {
+        acc[submission.titleSlug] = [];
+      }
+
+      acc[submission.titleSlug].push(submission);
+      return acc;
+    }, {});
+}
+
+function calcGlobalQuestionState(competition: Competition): Record<string, QuestionState> {
+  const state: Record<string, QuestionState> = {};
+  Object.values(competition.currentRankings).forEach((userSubmissionState) => {
+    Object.entries(userSubmissionState).forEach(([task, taskProgress]) => {
+      if (!state[task]) {
+        state[task] = { solved: 0 };
+      }
+      state[task].solved += Number(taskProgress.isPassed);
+    });
+  });
+
+  return state;
 }
 
 const leetcodeApi = new LeetCode();
 
-// TODO: implement check if update happened to bail state recalc if none
-function updateCompetitionSubmissions(competition: Competition): Promise<unknown> {
+function updateCompetitionSubmissions(competition: Competition): Promise<boolean> {
   const questionMap = keyBy(competition.tasks, (question) => question.titleSlug);
-  return Promise.all(competition.users.map((user) => updateUserSubmissions(competition, user, questionMap)));
+  return Promise.all(competition.users.map((user) => updateUserSubmissions(competition, user, questionMap)))
+    .then((results) => results.some(x => x));
 }
 
-async function updateUserSubmissions(competition: Competition, user: User, questionMap: QuestionMap): Promise<RecentSubmission[]> {
+async function updateUserSubmissions(competition: Competition, user: User, questionMap: QuestionMap): Promise<boolean> {
   const submissions = await leetcodeApi.recent_submissions(user);
   const existingSubmissions = competition.userSubmissions[user];
   const competitionEnd = competition.startTime + competition.durationS;
@@ -134,19 +179,35 @@ async function updateUserSubmissions(competition: Competition, user: User, quest
       && questionMap[submission.titleSlug]);
 
   if (!validSubmissions.length) {
-    return existingSubmissions;
+    return false;
   }
 
   if (!existingSubmissions.length) {
     competition.userSubmissions[user] = validSubmissions;
-    return validSubmissions;
+    return true;
   }
 
   competition.userSubmissions[user].push(...validSubmissions);
-  return competition.userSubmissions[user];
+  return true;
 }
 
-function calcScore(userTaskProgress: TaskProgress, globalTaskProgress: Record<string, TaskProgress>): number {
-  // TODO: Implement score calculation
-  return 0;
+let intervalId: ReturnType<typeof setInterval> | null = null;
+
+function triggerProxy(proxy: RunningCompetitions) {
+  const anyKey: string | undefined = Object.keys(proxy)[0];
+
+  if (anyKey) {
+    proxy[anyKey] = proxy[anyKey];
+  }
+}
+
+// TODO: move to worker thread (or threads)
+export function startCompetitionStatesIntervalUpdates(intervalMs: number) {
+  intervalId = setInterval(() => updateAllCompetitionStates().then(() => triggerProxy(runningCompetitions)), intervalMs);
+}
+
+function calcScore(userTaskProgress: TaskProgress, globalProgressOnTask: QuestionState): number {
+  return userTaskProgress.isPassed
+    ? Math.max(100 * (1 - 0.1 * Math.max(globalProgressOnTask.solved - 3, 0)) + (-2 * userTaskProgress.failNum), 0)
+    : 0;
 }
