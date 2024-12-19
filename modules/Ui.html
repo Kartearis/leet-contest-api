@@ -5,7 +5,7 @@
   <title>Leetcode standings - {{ title }}</title>
 </head>
 <body>
-  <table>
+  <table class="table">
     <thead>
       <tr>
         <th> Users </th>
@@ -31,10 +31,29 @@
 </body>
 
 <style>
-
+  .table {
+    border: solid 1px #DDEEEE;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font: normal 13px Arial, sans-serif;
+  }
+  .table thead th {
+    background-color: #DDEFEF;
+    border: solid 1px #DDEEEE;
+    color: #336B6B;
+    padding: 10px;
+    text-align: left;
+    text-shadow: 1px 1px 1px #fff;
+  }
+  .table tbody td {
+    border: solid 1px #DDEEEE;
+    color: #333;
+    padding: 10px;
+    text-shadow: 1px 1px 1px #fff;
+  }
 </style>
 
 <script>
-
+setInterval(() => window.location.reload(), 1000 * 60 * 5 );
 </script>
 </html>

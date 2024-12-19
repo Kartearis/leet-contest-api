@@ -28,7 +28,7 @@ export type UserRanking = Record<string, TaskProgress>
 // Record of Ranking per user
 export type Rankings = Record<string, UserRanking>
 
-export type QuestionMap = Record<string, Question>;
+export type QuestionMap = Record<string, Question | undefined>;
 
 export type User = string;
 
@@ -114,7 +114,7 @@ export async function updateAllCompetitionStates(){
       const submissionsByQuestions = userSubmissionByTask(competition.userSubmissions[user] ?? []);
 
       competition.tasks.forEach((question) => {
-        const relevant = submissionsByQuestions[question.titleSlug];
+        const relevant = submissionsByQuestions[question.titleSlug] ?? [];
         const acceptedSubmissions = relevant.filter((submission) => submission.statusDisplay === SubmissionStatus.ACCEPTED);
 
         if (!competition.currentRankings[user]) {

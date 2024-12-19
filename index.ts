@@ -79,7 +79,7 @@ loadPersistent('runningCompetitions')
   return updateAllCompetitionTaskList();
 }).then(() => {
   setRunningCompetitions(makeShallowProxy(runningCompetitions, 'runningCompetitions') as RunningCompetitions);
-  startCompetitionStatesIntervalUpdates(fiveMinutes / 5);
+  startCompetitionStatesIntervalUpdates(fiveMinutes);
 
   console.log(`Server is running on port ${port}`)
   serve({
