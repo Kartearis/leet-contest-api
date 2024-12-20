@@ -5,6 +5,7 @@
   <title>Leetcode standings - {{ title }}</title>
 </head>
 <body>
+  <h3> Leetcode standings - {{ title }}</h3>
   <table class="table">
     <thead>
       <tr>
@@ -19,9 +20,8 @@
       <tr>
         <td> {{ user }} </td>
         {{#tasks}}
-          <td>
-            <div> {{ pass }}</div>
-            <div>{{ score }}</div>
+          <td class="{{ pass }}">
+            {{ score }}
           </td>
         {{/tasks}}
       </tr>
@@ -31,25 +31,44 @@
 </body>
 
 <style>
+  body {
+    padding: 16px;
+  }
   .table {
     border: solid 1px #DDEEEE;
     border-collapse: collapse;
     border-spacing: 0;
+    border-radius: 8px;
     font: normal 13px Arial, sans-serif;
   }
   .table thead th {
-    background-color: #DDEFEF;
-    border: solid 1px #DDEEEE;
-    color: #336B6B;
+    background-color: #A1CDF1;
+    border: solid 1px #635255;
+    color: #1A281F;
     padding: 10px;
     text-align: left;
-    text-shadow: 1px 1px 1px #fff;
+    min-width: 60px;
+    max-width: 60px;
+    word-wrap: break-word;
   }
   .table tbody td {
-    border: solid 1px #DDEEEE;
-    color: #333;
+    border: solid 1px #635255;
+    color: #1A281F;
     padding: 10px;
-    text-shadow: 1px 1px 1px #fff;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  td.pass {
+    background-color: #A0E8AF;
+  }
+
+  td.fail {
+    background-color: #FA7E61;
+  }
+
+  h3 {
+    text-align: center;
   }
 </style>
 

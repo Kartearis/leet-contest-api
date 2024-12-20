@@ -35,6 +35,7 @@ export type User = string;
 export type Competition = {
   startTime: number; // second timestamp in utc (unix timestamp)
   durationS: number;
+  title?: string;
   titleSlug: string;
   users: User[];
   userSubmissions: UserSubmissions;
@@ -52,7 +53,7 @@ export function setRunningCompetitions(data: RunningCompetitions) {
 
 const threeHours = 60 * 60 * 3;
 
-export async function addCompetition(competitionSlug: string, duration?: number) {
+export async function addCompetition(competitionSlug: string, duration?: number, title?: string) {
   if (runningCompetitions[competitionSlug]) {
     throw new Error('Already exists');
   }
@@ -61,6 +62,7 @@ export async function addCompetition(competitionSlug: string, duration?: number)
   const competition = {
     startTime: dayjs().unix(),
     durationS: duration ?? threeHours,
+    title: title,
     titleSlug: competitionSlug,
     userSubmissions: {},
     currentRankings: {},
@@ -76,6 +78,7 @@ export async function addCompetition(competitionSlug: string, duration?: number)
 export async function updateCompetitionTaskList(competition: Competition,): Promise<Competition> {
   try {
     competition.tasks = await getAllTasks(competition.titleSlug);
+    console.log('Updated tasks', competition.tasks.map((task) => task.titleSlug));
   } catch (e) {
     throw new Error('Could not load tasks', { cause: e });
   }
@@ -91,7 +94,7 @@ export async function updateAllCompetitionTaskList(): Promise<RunningCompetition
 // TODO: do not duplicate requests about one user if can be shared by several competitions
 export async function updateAllCompetitionStates(){
   const competitions = Object.values(runningCompetitions);
-  console.log('Update all competitions');
+  console.log(`Update all competitions: ${updateCount++}`);
 
   await Promise.all(competitions.map(async (competition) => {
     const currentTime = dayjs().unix();
@@ -170,6 +173,7 @@ function updateCompetitionSubmissions(competition: Competition): Promise<boolean
     .then((results) => results.some(x => x));
 }
 
+let updateCount = 0;
 async function updateUserSubmissions(competition: Competition, user: User, questionMap: QuestionMap): Promise<boolean> {
   const submissions = await leetcodeApi.recent_submissions(user);
   const existingSubmissions = competition.userSubmissions[user] ?? [];
@@ -178,11 +182,21 @@ async function updateUserSubmissions(competition: Competition, user: User, quest
     ? Number(existingSubmissions[existingSubmissions.length - 1].timestamp)
     : null;
 
+  // console.log('Update user submissions',
+  //   user,
+  //   dayjs.unix(competition.startTime).toISOString(),
+  //   dayjs.unix(competitionEnd).toISOString(),
+  //   lastSubmissionTimestamp && dayjs.unix(lastSubmissionTimestamp).toISOString(),
+  // );
+
   // Filter out all submission out of competition and not from task list and before last saved one
   const validSubmissions = submissions
     .filter((submission) => Number(submission.timestamp) > (lastSubmissionTimestamp ?? competition.startTime)
       && Number(submission.timestamp) <= competitionEnd
       && questionMap[submission.titleSlug]);
+
+  // console.log('subs', submissions.map((s) => dayjs.unix(Number(s.timestamp)).toISOString()));
+  // console.log('valid subs', validSubmissions);
 
   if (!validSubmissions.length) {
     return false;
@@ -199,7 +213,7 @@ async function updateUserSubmissions(competition: Competition, user: User, quest
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
-function triggerProxy(proxy: RunningCompetitions) {
+export function triggerProxy(proxy: RunningCompetitions) {
   const anyKey: string | undefined = Object.keys(proxy)[0];
 
   if (anyKey) {
@@ -209,6 +223,7 @@ function triggerProxy(proxy: RunningCompetitions) {
 
 // TODO: move to worker thread (or threads)
 export function startCompetitionStatesIntervalUpdates(intervalMs: number) {
+  setTimeout(() => updateAllCompetitionStates().then(() => triggerProxy(runningCompetitions)), 0);
   intervalId = setInterval(() => updateAllCompetitionStates().then(() => triggerProxy(runningCompetitions)), intervalMs);
 }
 

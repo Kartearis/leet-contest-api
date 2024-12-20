@@ -3,8 +3,6 @@ import {debounce} from "es-toolkit";
 
 // TODO: maybe replace with vue-reactivity
 export function makeShallowProxy(target: Record<string, unknown>, file: string) {
-  console.log('Make proxy for', target);
-
   const debouncedWrite = debounce(
     (fileName: string, data: unknown) => fs.promises
       .writeFile(fileName, JSON.stringify(data)).catch(console.log),

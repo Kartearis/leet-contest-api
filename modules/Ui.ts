@@ -4,13 +4,17 @@ import type {Question} from "./CustomLeetcodeApi.ts";
 import Mustache from 'mustache';
 
 export function renderCompetitionPage(rankings: Rankings, tasks: Question[], title: string): string {
-  // TODO: make empty row for
+  // TODO: make empty row for users without submissions
   const rankingsForTemplate = Object.entries(rankings)
     .map(([user, userTasks]) => ({
       user: user,
       tasks: tasks.map((task) => ({
-        pass: userTasks[task.titleSlug].isPassed ? '+' : '-',
-        score: userTasks[task.titleSlug].score
+        pass: userTasks[task.titleSlug]?.isPassed === true
+          ? 'pass'
+          : userTasks[task.titleSlug]?.failNum
+            ? 'fail'
+            : '',
+        score: userTasks[task.titleSlug]?.score || ''
       }))
     }));
 

@@ -4,7 +4,7 @@ import {loadPersistent, makeShallowProxy} from "./modules/Persistence.ts";
 import {
   addCompetition,
   RunningCompetitions,
-  runningCompetitions, setRunningCompetitions, startCompetitionStatesIntervalUpdates,
+  runningCompetitions, setRunningCompetitions, startCompetitionStatesIntervalUpdates, triggerProxy,
   updateAllCompetitionTaskList
 } from "./modules/Competitions.ts";
 import {HTTPException} from "hono/http-exception";
@@ -17,10 +17,13 @@ const port = 3000;
 // TODO: basic auth
 app.get('/competitions/create/:slug', async (c) => {
   const { slug } = c.req.param();
-  const duration = c.req.query['duration'] && Number(c.req.query['duration']);
+  const duration = c.req.query('duration')
+    ? Number(c.req.query('duration'))
+    : undefined;
+  const title = c.req.query('title');
 
   try {
-    await addCompetition(slug, duration);
+    await addCompetition(slug, duration, title);
   } catch (e) {
     throw new HTTPException(401, { message: e.toString() })
   }
@@ -50,13 +53,13 @@ app.post('/competitions/:slug/register', async (c) => {
 
 // TODO: drop user parameter and make registration instead
 app.get('/competitions/:slug/', async (c) => {
-  const slug = c.req.param('slug');
+  const slug = c.req.param('slug') as string;
   const user = c.req.query('user');
-  console.log('user is', user);
+
   if (!user) {
     throw new HTTPException(422, { message: 'User must be provided' });
   }
-  console.log(`get for  ${user}`);
+
   const competition = runningCompetitions[slug];
 
   if (!competition) {
@@ -65,16 +68,18 @@ app.get('/competitions/:slug/', async (c) => {
 
   if (!competition.users.includes(user)) {
     competition.users.push(user);
+    console.log('Added user', user);
+
+    triggerProxy(runningCompetitions);
   }
 
-  return c.html(renderCompetitionPage(competition.currentRankings, competition.tasks, competition.titleSlug));
+  return c.html(renderCompetitionPage(competition.currentRankings, competition.tasks, competition.title ?? competition.titleSlug));
 });
 
 const fiveMinutes = 1000 * 60 * 5;
 
 loadPersistent('runningCompetitions')
   .then((data) => {
-  console.log('Loaded', data);
   setRunningCompetitions(data as RunningCompetitions ?? {});
   return updateAllCompetitionTaskList();
 }).then(() => {
