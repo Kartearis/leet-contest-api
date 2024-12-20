@@ -227,8 +227,8 @@ export function startCompetitionStatesIntervalUpdates(intervalMs: number) {
   intervalId = setInterval(() => updateAllCompetitionStates().then(() => triggerProxy(runningCompetitions)), intervalMs);
 }
 
-function calcScore(userTaskProgress: TaskProgress, globalProgressOnTask: QuestionState): number {
+function calcScore(userTaskProgress: TaskProgress, globalProgressOnTask?: QuestionState): number {
   return userTaskProgress.isPassed
-    ? Math.max(100 * (1 - 0.1 * Math.max(globalProgressOnTask.solved - 3, 0)) + (-2 * userTaskProgress.failNum), 0)
+    ? Math.max(100 * (1 - 0.1 * Math.max((globalProgressOnTask?.solved ?? 0) - 3, 0)) + (-2 * userTaskProgress.failNum), 0)
     : 0;
 }
