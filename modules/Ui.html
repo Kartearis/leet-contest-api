@@ -10,6 +10,7 @@
     <thead>
       <tr>
         <th> Users </th>
+        <th> Total </th>
         {{#tasks}}
         <th> {{ titleSlug }}</th>
         {{/tasks}}
@@ -19,6 +20,7 @@
       {{#rankings}}
       <tr>
         <td> {{ user }} </td>
+        <td> {{ total }}</td>
         {{#tasks}}
           <td class="{{ pass }}">
             {{ score }}
@@ -46,7 +48,7 @@
     border: solid 1px #635255;
     color: #1A281F;
     padding: 10px;
-    text-align: left;
+    text-align: center;
     min-width: 60px;
     max-width: 60px;
     word-wrap: break-word;
@@ -73,6 +75,7 @@
 </style>
 
 <script>
-setInterval(() => window.location.reload(), 1000 * 60 * 5 );
+const threeMinutes = 1000 * 60 * 3;
+setInterval(() => window.location.reload(), threeMinutes );
 </script>
 </html>
