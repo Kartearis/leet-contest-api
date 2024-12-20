@@ -53,14 +53,14 @@ export function setRunningCompetitions(data: RunningCompetitions) {
 
 const threeHours = 60 * 60 * 3;
 
-export async function addCompetition(competitionSlug: string, duration?: number, title?: string) {
+export async function addCompetition(competitionSlug: string, startTime?: number, duration?: number, title?: string) {
   if (runningCompetitions[competitionSlug]) {
     throw new Error('Already exists');
   }
 
   // TODO: think through date persistence. Either use timestamp(simple) or reviver(hard)
   const competition = {
-    startTime: dayjs().unix(),
+    startTime: startTime ?? dayjs().unix(),
     durationS: duration ?? threeHours,
     title: title,
     titleSlug: competitionSlug,

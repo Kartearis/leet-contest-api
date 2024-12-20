@@ -21,9 +21,12 @@ app.get('/competitions/create/:slug', async (c) => {
     ? Number(c.req.query('duration'))
     : undefined;
   const title = c.req.query('title');
+  const startTime = c.req.query('start')
+    ? Number(c.req.query('start'))
+    : undefined;
 
   try {
-    await addCompetition(slug, duration, title);
+    await addCompetition(slug, startTime, duration, title);
   } catch (e) {
     throw new HTTPException(401, { message: e.toString() })
   }
