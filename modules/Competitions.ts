@@ -3,6 +3,7 @@ import {LeetCode, RecentSubmission} from "leetcode-query";
 import {getAllTasks} from "./CustomLeetcodeApi.ts";
 import dayjs from "dayjs";
 import {keyBy} from "es-toolkit";
+import {max} from "es-toolkit/compat";
 
 export enum SubmissionStatus {
   ACCEPTED = "Accepted",
@@ -178,8 +179,9 @@ async function updateUserSubmissions(competition: Competition, user: User, quest
   const submissions = await leetcodeApi.recent_submissions(user);
   const existingSubmissions = competition.userSubmissions[user] ?? [];
   const competitionEnd = competition.startTime + competition.durationS;
+  // TODO: Maybe optimize
   const lastSubmissionTimestamp = existingSubmissions.length
-    ? Number(existingSubmissions[existingSubmissions.length - 1].timestamp)
+    ? max(existingSubmissions.map((sub) => sub.timestamp))
     : null;
 
   // console.log('Update user submissions',
