@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    restart: "no"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - 11224:3000
+    entrypoint: "bun run index.ts"

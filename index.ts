@@ -12,7 +12,7 @@ import {renderCompetitionPage} from "./modules/Ui.ts";
 
 const app = new Hono();
 
-const port = 3000;
+const port = process.env.PORT && Number(process.env.PORT) || 3000;
 
 // TODO: basic auth
 app.get('/competitions/create/:slug', async (c) => {
@@ -76,7 +76,7 @@ app.get('/competitions/:slug/', async (c) => {
   return c.html(renderCompetitionPage(competition.currentRankings, competition.tasks, competition.title ?? competition.titleSlug));
 });
 
-const fiveMinutes = 1000 * 60 * 5;
+const fiveMinutes = 1000 * 60 * 2;
 
 loadPersistent('runningCompetitions')
   .then((data) => {
